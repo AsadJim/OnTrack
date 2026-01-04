@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   CheckCircle2, 
   Circle, 
@@ -13,7 +13,13 @@ import {
   TrendingUp,
   Award,
   Settings,
-  Target
+  Target,
+  Download,
+  Upload,
+  Moon,
+  Sun,
+  LayoutDashboard,
+  LogOut
 } from 'lucide-react';
 
 /**
@@ -47,10 +53,14 @@ const formatDate = (date) => {
 
 const getDaysInMonth = (year, month) => new Date(year, month + 1, 0).getDate();
 
-// --- SUB-COMPONENTS (Defined OUTSIDE to fix focus bug) ---
+// --- SUB-COMPONENTS ---
 
 const StatCard = ({ icon: Icon, value, label, highlight }) => (
-  <div className={`p-4 rounded-2xl border flex flex-col items-center justify-center gap-1 transition-all ${highlight ? 'bg-emerald-900 text-white border-emerald-800' : 'bg-white border-stone-200 text-stone-600'}`}>
+  <div className={`p-4 rounded-2xl border flex flex-col items-center justify-center gap-1 transition-all 
+    ${highlight 
+      ? 'bg-emerald-900 dark:bg-emerald-950 text-white border-emerald-800 dark:border-emerald-900' 
+      : 'bg-white dark:bg-stone-900 border-stone-200 dark:border-stone-800 text-stone-600 dark:text-stone-400'
+    }`}>
     <div className="flex items-center gap-2 mb-1">
       <Icon size={16} className={highlight ? 'text-emerald-300' : 'text-stone-400'} />
       <span className="text-xs font-medium uppercase tracking-wider opacity-80">{label}</span>
@@ -59,16 +69,23 @@ const StatCard = ({ icon: Icon, value, label, highlight }) => (
   </div>
 );
 
-const NavButton = ({ active, onClick, icon: Icon, label }) => (
+const NavButton = ({ active, onClick, icon: Icon, label, isSidebar }) => (
   <button 
     onClick={onClick}
-    className={`flex flex-col items-center gap-1 transition-all duration-300 w-12 ${active ? 'text-emerald-400 transform -translate-y-1' : 'hover:text-stone-200'}`}
+    className={`flex items-center gap-3 transition-all duration-300 w-full p-3 rounded-xl
+      ${active 
+        ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 font-semibold' 
+        : 'text-stone-500 dark:text-stone-400 hover:bg-stone-100 dark:hover:bg-stone-800'
+      }
+      ${!isSidebar ? 'flex-col justify-center gap-1 md:hidden' : 'hidden md:flex'}
+    `}
   >
-    <Icon size={24} strokeWidth={active ? 2.5 : 2} className={active ? "drop-shadow-[0_0_8px_rgba(52,211,153,0.5)]" : ""} />
+    <Icon size={isSidebar ? 20 : 24} strokeWidth={active ? 2.5 : 2} />
+    <span className={`${isSidebar ? 'text-sm' : 'text-[10px] font-medium'}`}>{label}</span>
   </button>
 );
 
-const HomeView = ({ selectedDate, setSelectedDate, currentStats, currentStreak, getDayStats, dateKey }) => {
+const HomeView = ({ user, selectedDate, setSelectedDate, currentStats, currentStreak, getDayStats, dateKey }) => {
   const year = selectedDate.getFullYear();
   const month = selectedDate.getMonth();
   const monthDays = getDaysInMonth(year, month);
@@ -77,85 +94,111 @@ const HomeView = ({ selectedDate, setSelectedDate, currentStats, currentStreak, 
   const daysArray = Array.from({ length: monthDays }, (_, i) => i + 1);
   const emptySlots = Array.from({ length: firstDayOfMonth }, (_, i) => i);
 
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 5) return 'Good Night';
+    if (hour < 12) return 'Good Morning';
+    if (hour < 18) return 'Good Afternoon';
+    return 'Good Evening';
+  };
+
   return (
-    <div className="space-y-6 pb-28 animate-fade-in">
-      <div className="grid grid-cols-2 gap-3">
+    <div className="space-y-6 pb-28 md:pb-6 animate-fade-in max-w-4xl mx-auto">
+      
+      {/* Greeting & Goal Section */}
+      <div className="mb-2">
+        <h1 className="text-3xl md:text-4xl font-bold text-stone-900 dark:text-white tracking-tight">
+          {getGreeting()}, <span className="text-emerald-700 dark:text-emerald-400">{user.name.split(' ')[0]}</span>
+        </h1>
+        {user.goals && (
+          <div className="mt-4 flex items-start gap-3 bg-emerald-50 dark:bg-emerald-900/20 p-4 rounded-xl border border-emerald-100 dark:border-emerald-900/50">
+             <Target className="text-emerald-600 dark:text-emerald-400 mt-0.5 flex-shrink-0" size={20} />
+             <p className="text-sm md:text-base font-medium text-emerald-900 dark:text-emerald-200 italic">"{user.goals}"</p>
+          </div>
+        )}
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <StatCard icon={Zap} value={`${currentStreak} Days`} label="Streak" highlight={true} />
           <StatCard icon={Target} value={`${currentStats.percentage}%`} label="Today" highlight={false} />
       </div>
 
-      <div className="bg-white p-5 rounded-2xl shadow-sm border border-stone-200">
-         <div className="flex justify-between items-end mb-3">
-            <div>
-              <h3 className="text-stone-900 font-bold text-lg">Daily Goal</h3>
-              <p className="text-stone-500 text-xs mt-1">
-                {currentStats.isStreak ? "Excellent! You've maintained the 80% rule." : "Complete tasks & habits to hit 80%."}
-              </p>
-            </div>
-            <div className={`px-3 py-1 rounded-full text-xs font-bold ${currentStats.isStreak ? 'bg-emerald-100 text-emerald-800' : 'bg-stone-100 text-stone-500'}`}>
-              {currentStats.isStreak ? 'ON TRACK' : 'PENDING'}
-            </div>
-         </div>
-         
-         <div className="h-4 w-full bg-stone-100 rounded-full overflow-hidden relative">
-            <div className="absolute top-0 bottom-0 w-0.5 bg-stone-300 z-10" style={{ left: '80%' }}></div>
-            <div 
-              className={`h-full transition-all duration-700 ease-out rounded-full ${currentStats.isStreak ? 'bg-emerald-600' : 'bg-stone-800'}`}
-              style={{ width: `${currentStats.percentage}%` }}
-            />
-          </div>
-          <div className="flex justify-between text-[10px] text-stone-400 font-medium mt-1 px-1">
-            <span>0%</span>
-            <span className="text-stone-600">80% Target</span>
-            <span>100%</span>
-          </div>
-      </div>
-
-      <div className="bg-white p-6 rounded-2xl shadow-sm border border-stone-200">
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="font-bold text-stone-900 text-lg">
-            {selectedDate.toLocaleString('default', { month: 'long', year: 'numeric' })}
-          </h3>
-          <button 
-            onClick={() => setSelectedDate(new Date())}
-            className="text-xs font-semibold text-emerald-700 hover:bg-emerald-50 px-3 py-1 rounded-full transition-colors"
-          >
-            Jump to Today
-          </button>
-        </div>
-        
-        <div className="grid grid-cols-7 gap-y-4">
-          {['Su','Mo','Tu','We','Th','Fr','Sa'].map((d, i) => (
-            <div key={i} className="text-center text-xs text-stone-400 font-bold uppercase tracking-wider">{d}</div>
-          ))}
-          {emptySlots.map(i => <div key={`empty-${i}`} />)}
-          {daysArray.map(day => {
-            const d = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), day);
-            const dKey = formatDate(d);
-            const stats = getDayStats(dKey);
-            const isToday = dKey === formatDate(new Date());
-            const isSelected = dKey === dateKey;
-            
-            return (
-              <div key={day} className="flex justify-center">
-                <button 
-                  onClick={() => setSelectedDate(d)}
-                  className={`
-                    w-9 h-9 rounded-full flex items-center justify-center text-sm font-medium transition-all relative
-                    ${isSelected ? 'bg-stone-900 text-white shadow-lg scale-110 z-10' : ''}
-                    ${!isSelected && stats.isStreak ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' : ''}
-                    ${!isSelected && !stats.isStreak && !isToday ? 'text-stone-500 hover:bg-stone-100' : ''}
-                    ${!isSelected && isToday ? 'border-2 border-stone-900 text-stone-900' : ''}
-                  `}
-                >
-                  {day}
-                  {!isSelected && stats.isStreak && (
-                     <div className="absolute -bottom-1 w-1 h-1 bg-emerald-600 rounded-full"></div>
-                  )}
-                </button>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Progress Insight */}
+        <div className="bg-white dark:bg-stone-900 p-5 rounded-2xl shadow-sm border border-stone-200 dark:border-stone-800">
+           <div className="flex justify-between items-end mb-3">
+              <div>
+                <h3 className="text-stone-900 dark:text-stone-100 font-bold text-lg">Daily Goal</h3>
+                <p className="text-stone-500 dark:text-stone-400 text-xs mt-1">
+                  {currentStats.isStreak ? "Excellent! You've maintained the 80% rule." : "Complete tasks & habits to hit 80%."}
+                </p>
               </div>
-            );
-          })}
+              <div className={`px-3 py-1 rounded-full text-xs font-bold ${currentStats.isStreak ? 'bg-emerald-100 dark:bg-emerald-900 text-emerald-800 dark:text-emerald-200' : 'bg-stone-100 dark:bg-stone-800 text-stone-500 dark:text-stone-400'}`}>
+                {currentStats.isStreak ? 'ON TRACK' : 'PENDING'}
+              </div>
+           </div>
+           
+           <div className="h-4 w-full bg-stone-100 dark:bg-stone-800 rounded-full overflow-hidden relative">
+              <div className="absolute top-0 bottom-0 w-0.5 bg-stone-300 dark:bg-stone-700 z-10" style={{ left: '80%' }}></div>
+              <div 
+                className={`h-full transition-all duration-700 ease-out rounded-full ${currentStats.isStreak ? 'bg-emerald-600 dark:bg-emerald-500' : 'bg-stone-800 dark:bg-stone-600'}`}
+                style={{ width: `${currentStats.percentage}%` }}
+              />
+            </div>
+            <div className="flex justify-between text-[10px] text-stone-400 font-medium mt-1 px-1">
+              <span>0%</span>
+              <span className="text-stone-600 dark:text-stone-400">80% Target</span>
+              <span>100%</span>
+            </div>
+        </div>
+
+        {/* Calendar */}
+        <div className="bg-white dark:bg-stone-900 p-6 rounded-2xl shadow-sm border border-stone-200 dark:border-stone-800">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="font-bold text-stone-900 dark:text-stone-100 text-lg">
+              {selectedDate.toLocaleString('default', { month: 'long', year: 'numeric' })}
+            </h3>
+            <button 
+              onClick={() => setSelectedDate(new Date())}
+              className="text-xs font-semibold text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 px-3 py-1 rounded-full transition-colors"
+            >
+              Jump to Today
+            </button>
+          </div>
+          
+          <div className="grid grid-cols-7 gap-y-4">
+            {['Su','Mo','Tu','We','Th','Fr','Sa'].map((d, i) => (
+              <div key={i} className="text-center text-xs text-stone-400 font-bold uppercase tracking-wider">{d}</div>
+            ))}
+            {emptySlots.map(i => <div key={`empty-${i}`} />)}
+            {daysArray.map(day => {
+              const d = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), day);
+              const dKey = formatDate(d);
+              const stats = getDayStats(dKey);
+              const isToday = dKey === formatDate(new Date());
+              const isSelected = dKey === dateKey;
+              
+              return (
+                <div key={day} className="flex justify-center">
+                  <button 
+                    onClick={() => setSelectedDate(d)}
+                    className={`
+                      w-9 h-9 rounded-full flex items-center justify-center text-sm font-medium transition-all relative
+                      ${isSelected ? 'bg-stone-900 dark:bg-emerald-500 text-white shadow-lg scale-110 z-10' : ''}
+                      ${!isSelected && stats.isStreak ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800' : ''}
+                      ${!isSelected && !stats.isStreak && !isToday ? 'text-stone-500 dark:text-stone-500 hover:bg-stone-100 dark:hover:bg-stone-800' : ''}
+                      ${!isSelected && isToday ? 'border-2 border-stone-900 dark:border-stone-100 text-stone-900 dark:text-stone-100' : ''}
+                    `}
+                  >
+                    {day}
+                    {!isSelected && stats.isStreak && (
+                       <div className="absolute -bottom-1 w-1 h-1 bg-emerald-600 rounded-full"></div>
+                    )}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
         </div>
       </div>
     </div>
@@ -180,14 +223,16 @@ const TasksView = ({ tasks, dateKey, addTask, toggleTask, deleteTask }) => {
   };
 
   return (
-    <div className="h-full pb-28 flex flex-col">
-      <div className="flex gap-2 mb-6 p-1 bg-stone-100 rounded-xl w-fit">
+    <div className="h-full pb-28 md:pb-6 flex flex-col max-w-4xl mx-auto w-full">
+      <div className="flex gap-2 mb-6 p-1 bg-stone-100 dark:bg-stone-800 rounded-xl w-fit">
         {['daily', 'weekly', 'all'].map(f => (
           <button
             key={f}
             onClick={() => setFilter(f)}
             className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wide transition-all
-              ${filter === f ? 'bg-white text-stone-900 shadow-sm' : 'text-stone-500 hover:text-stone-700'}`}
+              ${filter === f 
+                ? 'bg-white dark:bg-stone-700 text-stone-900 dark:text-white shadow-sm' 
+                : 'text-stone-500 dark:text-stone-400 hover:text-stone-700 dark:hover:text-stone-200'}`}
           >
             {f === 'daily' ? 'Today' : f}
           </button>
@@ -196,34 +241,39 @@ const TasksView = ({ tasks, dateKey, addTask, toggleTask, deleteTask }) => {
 
       <div className="flex-1 overflow-y-auto space-y-3">
         {displayedTasks.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-48 text-stone-400">
-            <div className="w-16 h-16 bg-stone-100 rounded-full flex items-center justify-center mb-3">
+          <div className="flex flex-col items-center justify-center h-48 text-stone-400 dark:text-stone-600">
+            <div className="w-16 h-16 bg-stone-100 dark:bg-stone-800 rounded-full flex items-center justify-center mb-3">
                <ListTodo size={24} className="opacity-50" />
             </div>
             <p className="text-sm font-medium">No tasks for this day.</p>
           </div>
         ) : (
-          displayedTasks.map(task => (
-            <div key={task.id} className={`group p-4 rounded-xl border flex items-center gap-4 transition-all duration-200 ${task.completed ? 'bg-stone-50 border-stone-100 opacity-75' : 'bg-white border-stone-200 shadow-sm hover:border-emerald-300'}`}>
-              <button 
-                onClick={() => toggleTask(task.id)}
-                className={`flex-shrink-0 transition-colors duration-200 transform active:scale-90`}
-              >
-                {task.completed ? 
-                  <CheckCircle2 size={24} className="text-emerald-600" fill="#d1fae5" /> : 
-                  <Circle size={24} className="text-stone-300 hover:text-emerald-500" strokeWidth={2} />
-                }
-              </button>
-              <div className="flex-1 min-w-0">
-                <span className={`block text-sm font-medium truncate ${task.completed ? 'line-through text-stone-400' : 'text-stone-900'}`}>
-                  {task.title}
-                </span>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {displayedTasks.map(task => (
+              <div key={task.id} className={`group p-4 rounded-xl border flex items-center gap-4 transition-all duration-200 
+                ${task.completed 
+                  ? 'bg-stone-50 dark:bg-stone-900/50 border-stone-100 dark:border-stone-800 opacity-75' 
+                  : 'bg-white dark:bg-stone-900 border-stone-200 dark:border-stone-800 shadow-sm hover:border-emerald-300 dark:hover:border-emerald-700'}`}>
+                <button 
+                  onClick={() => toggleTask(task.id)}
+                  className={`flex-shrink-0 transition-colors duration-200 transform active:scale-90`}
+                >
+                  {task.completed ? 
+                    <CheckCircle2 size={24} className="text-emerald-600 dark:text-emerald-500" fill="currentColor" fillOpacity={0.2} /> : 
+                    <Circle size={24} className="text-stone-300 dark:text-stone-600 hover:text-emerald-500" strokeWidth={2} />
+                  }
+                </button>
+                <div className="flex-1 min-w-0">
+                  <span className={`block text-sm font-medium truncate ${task.completed ? 'line-through text-stone-400 dark:text-stone-500' : 'text-stone-900 dark:text-stone-200'}`}>
+                    {task.title}
+                  </span>
+                </div>
+                <button onClick={() => deleteTask(task.id)} className="text-stone-300 dark:text-stone-600 opacity-0 group-hover:opacity-100 transition-opacity p-2 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg">
+                  <Trash2 size={16} />
+                </button>
               </div>
-              <button onClick={() => deleteTask(task.id)} className="text-stone-300 opacity-0 group-hover:opacity-100 transition-opacity p-2 hover:text-red-600 hover:bg-red-50 rounded-lg">
-                <Trash2 size={16} />
-              </button>
-            </div>
-          ))
+            ))}
+          </div>
         )}
       </div>
 
@@ -234,12 +284,12 @@ const TasksView = ({ tasks, dateKey, addTask, toggleTask, deleteTask }) => {
             value={newTaskTitle}
             onChange={(e) => setNewTaskTitle(e.target.value)}
             placeholder="Add a new task..."
-            className="w-full bg-white border border-stone-200 rounded-xl pl-4 pr-12 py-4 text-stone-900 placeholder-stone-400 shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
+            className="w-full bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-xl pl-4 pr-12 py-4 text-stone-900 dark:text-stone-100 placeholder-stone-400 shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
           />
           <button 
             type="submit" 
             disabled={!newTaskTitle.trim()}
-            className="absolute right-2 top-2 bottom-2 aspect-square bg-stone-900 text-white rounded-lg flex items-center justify-center hover:bg-emerald-600 disabled:opacity-50 disabled:hover:bg-stone-900 transition-colors"
+            className="absolute right-2 top-2 bottom-2 aspect-square bg-stone-900 dark:bg-stone-700 text-white rounded-lg flex items-center justify-center hover:bg-emerald-600 dark:hover:bg-emerald-500 disabled:opacity-50 disabled:hover:bg-stone-900 transition-colors"
           >
             <Plus size={20} />
           </button>
@@ -261,54 +311,59 @@ const HabitsView = ({ habits, habitLogs, dateKey, addHabit, toggleHabit, deleteH
   };
 
   return (
-    <div className="h-full pb-28 flex flex-col">
-      <div className="bg-emerald-900 rounded-2xl p-5 mb-6 text-white shadow-lg relative overflow-hidden">
+    <div className="h-full pb-28 md:pb-6 flex flex-col max-w-4xl mx-auto w-full">
+      <div className="bg-emerald-900 dark:bg-emerald-950 rounded-2xl p-5 mb-6 text-white shadow-lg relative overflow-hidden">
         <div className="relative z-10">
           <div className="flex items-center gap-2 mb-2 opacity-80">
             <Award size={18} />
             <span className="text-xs font-bold uppercase tracking-wider">The 80% Rule</span>
           </div>
-          <p className="text-sm leading-relaxed text-emerald-100">
+          <p className="text-sm leading-relaxed text-emerald-100 dark:text-emerald-300">
             Consistency beats perfection. You only need to complete <span className="font-bold text-white">80%</span> of your items to keep your streak alive.
           </p>
         </div>
-        <div className="absolute -right-6 -bottom-10 w-32 h-32 bg-emerald-800 rounded-full opacity-50 blur-2xl"></div>
+        <div className="absolute -right-6 -bottom-10 w-32 h-32 bg-emerald-800 dark:bg-emerald-900 rounded-full opacity-50 blur-2xl"></div>
       </div>
 
       <div className="flex-1 overflow-y-auto space-y-3">
         {habits.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-48 text-stone-400">
-            <div className="w-16 h-16 bg-stone-100 rounded-full flex items-center justify-center mb-3">
+          <div className="flex flex-col items-center justify-center h-48 text-stone-400 dark:text-stone-600">
+            <div className="w-16 h-16 bg-stone-100 dark:bg-stone-800 rounded-full flex items-center justify-center mb-3">
                <TrendingUp size={24} className="opacity-50" />
             </div>
             <p className="text-sm font-medium">No habits created yet.</p>
           </div>
         ) : (
-          habits.map(habit => {
-            const isDone = dailyLog.habitIds.includes(habit.id);
-            return (
-              <div key={habit.id} className={`group p-4 rounded-xl border flex items-center gap-4 transition-all duration-200 ${isDone ? 'bg-emerald-50 border-emerald-100' : 'bg-white border-stone-200 shadow-sm hover:border-emerald-300'}`}>
-                <button 
-                  onClick={() => toggleHabit(habit.id)}
-                  className={`flex-shrink-0 transition-all duration-300 transform active:scale-90`}
-                >
-                   {isDone ? 
-                     <div className="bg-emerald-600 text-white p-1 rounded-full"><CheckCircle2 size={20} /></div> : 
-                     <Circle size={28} className="text-stone-300 hover:text-emerald-500" strokeWidth={1.5} />
-                   }
-                </button>
-                <div className="flex-1">
-                  <span className={`block text-sm font-semibold transition-colors ${isDone ? 'text-emerald-900' : 'text-stone-700'}`}>
-                    {habit.title}
-                  </span>
-                  <span className="text-[10px] text-stone-400">Daily Habit</span>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {habits.map(habit => {
+              const isDone = dailyLog.habitIds.includes(habit.id);
+              return (
+                <div key={habit.id} className={`group p-4 rounded-xl border flex items-center gap-4 transition-all duration-200 
+                  ${isDone 
+                    ? 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-100 dark:border-emerald-900/50' 
+                    : 'bg-white dark:bg-stone-900 border-stone-200 dark:border-stone-800 shadow-sm hover:border-emerald-300 dark:hover:border-emerald-700'}`}>
+                  <button 
+                    onClick={() => toggleHabit(habit.id)}
+                    className={`flex-shrink-0 transition-all duration-300 transform active:scale-90`}
+                  >
+                     {isDone ? 
+                       <div className="bg-emerald-600 text-white p-1 rounded-full"><CheckCircle2 size={20} /></div> : 
+                       <Circle size={28} className="text-stone-300 dark:text-stone-600 hover:text-emerald-500" strokeWidth={1.5} />
+                     }
+                  </button>
+                  <div className="flex-1">
+                    <span className={`block text-sm font-semibold transition-colors ${isDone ? 'text-emerald-900 dark:text-emerald-200' : 'text-stone-700 dark:text-stone-300'}`}>
+                      {habit.title}
+                    </span>
+                    <span className="text-[10px] text-stone-400">Daily Habit</span>
+                  </div>
+                  <button onClick={() => deleteHabit(habit.id)} className="text-stone-300 dark:text-stone-600 opacity-0 group-hover:opacity-100 transition-opacity p-2 hover:text-red-600">
+                    <Trash2 size={16} />
+                  </button>
                 </div>
-                <button onClick={() => deleteHabit(habit.id)} className="text-stone-300 opacity-0 group-hover:opacity-100 transition-opacity p-2 hover:text-red-600">
-                  <Trash2 size={16} />
-                </button>
-              </div>
-            );
-          })
+              );
+            })}
+          </div>
         )}
       </div>
 
@@ -319,12 +374,12 @@ const HabitsView = ({ habits, habitLogs, dateKey, addHabit, toggleHabit, deleteH
             value={newHabitTitle}
             onChange={(e) => setNewHabitTitle(e.target.value)}
             placeholder="Start a new habit..."
-            className="w-full bg-white border border-stone-200 rounded-xl pl-4 pr-12 py-4 text-stone-900 placeholder-stone-400 shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
+            className="w-full bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-xl pl-4 pr-12 py-4 text-stone-900 dark:text-stone-100 placeholder-stone-400 shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
           />
           <button 
             type="submit" 
             disabled={!newHabitTitle.trim()}
-            className="absolute right-2 top-2 bottom-2 aspect-square bg-stone-900 text-white rounded-lg flex items-center justify-center hover:bg-emerald-600 disabled:opacity-50 disabled:hover:bg-stone-900 transition-colors"
+            className="absolute right-2 top-2 bottom-2 aspect-square bg-stone-900 dark:bg-stone-700 text-white rounded-lg flex items-center justify-center hover:bg-emerald-600 disabled:opacity-50 disabled:hover:bg-stone-900 transition-colors"
           >
             <Plus size={20} />
           </button>
@@ -334,40 +389,142 @@ const HabitsView = ({ habits, habitLogs, dateKey, addHabit, toggleHabit, deleteH
   );
 };
 
-const ProfileView = ({ user, updateUser }) => (
-  <div className="space-y-6 pb-28">
-    <div className="flex flex-col items-center py-10">
-      <div className="w-28 h-28 bg-white border-4 border-emerald-100 rounded-full flex items-center justify-center mb-5 text-emerald-800 shadow-lg">
-        <User size={48} />
-      </div>
-      <input 
-        value={user.name}
-        onChange={(e) => updateUser('name', e.target.value)}
-        className="text-3xl font-bold text-stone-900 text-center bg-transparent border-none focus:ring-0 focus:underline decoration-emerald-500 w-full"
-      />
-      <p className="text-stone-400 text-sm mt-1">Tap name to edit</p>
-    </div>
+const ProfileView = ({ user, updateUser, data, setData, isDarkMode, toggleTheme }) => {
+  const fileInputRef = useRef(null);
 
-    <div className="bg-white p-6 rounded-2xl shadow-sm border border-stone-200 space-y-4">
-      <div className="flex items-center gap-3 text-stone-900 font-bold text-lg">
-        <div className="p-2 bg-emerald-100 text-emerald-700 rounded-lg">
-          <Settings size={20} />
+  const handleExport = () => {
+    const dataStr = JSON.stringify(data, null, 2);
+    const blob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `ontrack_backup_${formatDate(new Date())}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleImport = (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const importedData = JSON.parse(e.target.result);
+        if (importedData.user && importedData.tasks && importedData.habits) {
+          if (confirm("Replacing current data with backup. Are you sure?")) {
+             setData(importedData);
+             alert("Data restored successfully!");
+          }
+        } else {
+          alert("Invalid backup file.");
+        }
+      } catch (err) {
+        console.error(err);
+        alert("Failed to parse backup file.");
+      }
+    };
+    reader.readAsText(file);
+    event.target.value = '';
+  };
+
+  return (
+    <div className="space-y-6 pb-28 md:pb-6 max-w-2xl mx-auto">
+      {/* Header */}
+      <div className="flex items-center gap-4 py-4 border-b border-stone-200 dark:border-stone-800">
+        <div className="w-20 h-20 bg-stone-100 dark:bg-stone-800 rounded-full flex items-center justify-center text-stone-400 dark:text-stone-500">
+          <User size={32} />
         </div>
-        <h3>My Goals</h3>
+        <div>
+          <h2 className="text-2xl font-bold text-stone-900 dark:text-white">Profile Settings</h2>
+          <p className="text-sm text-stone-500 dark:text-stone-400">Manage your account and preferences</p>
+        </div>
       </div>
-      <textarea 
-        value={user.goals}
-        onChange={(e) => updateUser('goals', e.target.value)}
-        className="w-full h-40 p-4 bg-stone-50 rounded-xl border border-stone-200 text-stone-700 text-sm leading-relaxed focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition-colors resize-none"
-        placeholder="What are you working towards?"
-      />
+
+      {/* Identity */}
+      <div className="bg-white dark:bg-stone-900 p-6 rounded-2xl shadow-sm border border-stone-200 dark:border-stone-800 space-y-4">
+        <label className="block text-xs font-bold uppercase tracking-wider text-stone-400">Display Name</label>
+        <input 
+          value={user.name}
+          onChange={(e) => updateUser('name', e.target.value)}
+          className="w-full bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 rounded-xl px-4 py-3 text-stone-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+        />
+      </div>
+
+      {/* Appearance */}
+      <div className="bg-white dark:bg-stone-900 p-6 rounded-2xl shadow-sm border border-stone-200 dark:border-stone-800 flex items-center justify-between">
+         <div className="flex items-center gap-3">
+            <div className={`p-2 rounded-lg ${isDarkMode ? 'bg-indigo-900/30 text-indigo-400' : 'bg-orange-100 text-orange-500'}`}>
+              {isDarkMode ? <Moon size={20} /> : <Sun size={20} />}
+            </div>
+            <div>
+              <h3 className="font-semibold text-stone-900 dark:text-white">Appearance</h3>
+              <p className="text-xs text-stone-500 dark:text-stone-400">Toggle dark mode</p>
+            </div>
+         </div>
+         <button 
+           onClick={toggleTheme}
+           className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 dark:focus:ring-offset-stone-900 ${isDarkMode ? 'bg-emerald-600' : 'bg-stone-200'}`}
+         >
+           <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${isDarkMode ? 'translate-x-6' : 'translate-x-1'}`} />
+         </button>
+      </div>
+
+      {/* Goals */}
+      <div className="bg-white dark:bg-stone-900 p-6 rounded-2xl shadow-sm border border-stone-200 dark:border-stone-800 space-y-4">
+        <div className="flex items-center gap-2 text-stone-900 dark:text-white font-bold">
+          <Target size={18} className="text-emerald-600" />
+          <h3>My Goals</h3>
+        </div>
+        <textarea 
+          value={user.goals}
+          onChange={(e) => updateUser('goals', e.target.value)}
+          className="w-full h-32 p-4 bg-stone-50 dark:bg-stone-800 rounded-xl border border-stone-200 dark:border-stone-700 text-stone-700 dark:text-stone-300 text-sm leading-relaxed focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none"
+          placeholder="What are you working towards?"
+        />
+      </div>
+
+      {/* Data Backup */}
+      <div className="bg-white dark:bg-stone-900 p-6 rounded-2xl shadow-sm border border-stone-200 dark:border-stone-800 space-y-4">
+        <div className="flex items-center justify-between">
+           <h3 className="text-stone-900 dark:text-white font-bold">Data Management</h3>
+           <span className="text-[10px] bg-stone-100 dark:bg-stone-800 text-stone-500 px-2 py-1 rounded">JSON Format</span>
+        </div>
+        <p className="text-xs text-stone-500 dark:text-stone-400">Export your progress to safeguard your streak or move to another device.</p>
+        
+        <div className="grid grid-cols-2 gap-3">
+          <button 
+            onClick={handleExport}
+            className="flex items-center justify-center gap-2 bg-stone-900 dark:bg-stone-700 text-white py-3 rounded-xl text-sm font-semibold hover:bg-emerald-700 dark:hover:bg-emerald-600 transition-colors"
+          >
+            <Download size={16} />
+            Backup
+          </button>
+          
+          <button 
+            onClick={() => fileInputRef.current.click()}
+            className="flex items-center justify-center gap-2 bg-stone-50 dark:bg-stone-800 text-stone-700 dark:text-stone-300 py-3 rounded-xl text-sm font-semibold hover:bg-stone-200 dark:hover:bg-stone-700 transition-colors border border-stone-200 dark:border-stone-700"
+          >
+            <Upload size={16} />
+            Restore
+          </button>
+          <input 
+            type="file" 
+            ref={fileInputRef}
+            onChange={handleImport}
+            accept=".json"
+            className="hidden"
+          />
+        </div>
+      </div>
+      
+      <div className="text-center pt-4 pb-8">
+        <p className="text-xs font-medium text-stone-400 uppercase tracking-widest">On Track v2.1</p>
+      </div>
     </div>
-    
-    <div className="text-center pt-8">
-      <p className="text-xs font-medium text-stone-400 uppercase tracking-widest">On Track v2.0</p>
-    </div>
-  </div>
-);
+  );
+};
 
 /**
  * MAIN APP COMPONENT
@@ -377,7 +534,31 @@ export default function OnTrackApp() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [data, setData] = useState(INITIAL_DATA);
   const [isLoaded, setIsLoaded] = useState(false);
+  
+  // Theme State
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('theme') === 'dark' || 
+        (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    }
+    return false;
+  });
 
+  // Theme Effect
+  useEffect(() => {
+    const root = window.document.documentElement;
+    if (isDarkMode) {
+      root.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
+    } else {
+      root.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
+    }
+  }, [isDarkMode]);
+
+  const toggleTheme = () => setIsDarkMode(!isDarkMode);
+
+  // Persistence
   useEffect(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
@@ -398,6 +579,7 @@ export default function OnTrackApp() {
 
   const dateKey = formatDate(selectedDate);
 
+  // Engine
   const getDayStats = (targetDateStr) => {
     const activeHabits = data.habits;
     const dailyTasks = data.tasks.filter(t => t.date === targetDateStr);
@@ -442,6 +624,7 @@ export default function OnTrackApp() {
 
   const currentStreak = useMemo(() => calculateStreak(), [data]);
 
+  // Actions
   const toggleHabit = (habitId) => {
     setData(prev => {
       const log = prev.habitLogs[dateKey] || { habitIds: [] };
@@ -491,91 +674,152 @@ export default function OnTrackApp() {
   };
 
   return (
-    <div className="min-h-screen bg-stone-50 font-sans text-stone-900 flex justify-center">
+    <div className="flex min-h-screen bg-stone-50 dark:bg-stone-950 font-sans text-stone-900 dark:text-stone-100 transition-colors duration-300">
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Big+Shoulders+Stencil+Text:wght@700&display=swap');
       `}</style>
       
-      <div className="w-full max-w-md bg-stone-50 min-h-screen relative shadow-2xl overflow-hidden flex flex-col">
+      {/* PC Sidebar Navigation */}
+      <aside className="hidden md:flex flex-col w-64 border-r border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-900 h-screen sticky top-0 p-6">
+        <div className="mb-10">
+          <h1 
+            className="text-4xl font-bold tracking-tight uppercase leading-none text-[#064E3B] dark:text-emerald-400 transition-colors"
+            style={{ 
+              fontFamily: "'Big Shoulders Stencil Text', cursive",
+            }}
+          >
+            On Track
+          </h1>
+          <p className="text-xs font-medium text-stone-500 mt-2">Don't lose your life's track</p>
+        </div>
+
+        <nav className="flex-1 space-y-2">
+          <NavButton active={activeTab === 'home'} onClick={() => setActiveTab('home')} icon={LayoutDashboard} label="Dashboard" isSidebar />
+          <NavButton active={activeTab === 'tasks'} onClick={() => setActiveTab('tasks')} icon={ListTodo} label="Tasks" isSidebar />
+          <NavButton active={activeTab === 'habits'} onClick={() => setActiveTab('habits')} icon={TrendingUp} label="Habits" isSidebar />
+          <NavButton active={activeTab === 'profile'} onClick={() => setActiveTab('profile')} icon={Settings} label="Settings" isSidebar />
+        </nav>
+
+        <div className="pt-6 border-t border-stone-100 dark:border-stone-800">
+           <div className="flex items-center gap-3 p-3 rounded-xl bg-stone-50 dark:bg-stone-800">
+              <div className="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-900 flex items-center justify-center text-emerald-800 dark:text-emerald-200 font-bold">
+                {data.user.name.charAt(0)}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-bold truncate">{data.user.name}</p>
+                <p className="text-xs text-stone-500 truncate">Free Plan</p>
+              </div>
+           </div>
+        </div>
+      </aside>
+
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col h-screen overflow-hidden">
         
-        <header className="px-6 pt-12 pb-4 flex justify-between items-center bg-stone-50/90 backdrop-blur-md sticky top-0 z-20">
+        {/* Mobile Header */}
+        <header className="md:hidden px-6 pt-12 pb-4 flex justify-between items-center bg-stone-50/90 dark:bg-stone-950/90 backdrop-blur-md sticky top-0 z-20">
           <div>
             <h1 
-              className="text-3xl font-bold tracking-tight uppercase leading-none"
+              className="text-3xl font-bold tracking-tight uppercase leading-none text-[#064E3B] dark:text-emerald-400 transition-colors"
               style={{ 
                 fontFamily: "'Big Shoulders Stencil Text', cursive",
-                color: '#064E3B'
               }}
             >
               On Track
             </h1>
-            <p className="text-xs font-medium text-stone-500 mt-1">Don't lose your life's track</p>
           </div>
-          
-          {activeTab !== 'profile' && (
-            <div className="flex items-center gap-1 bg-white border border-stone-200 rounded-full p-1 shadow-sm">
-              <button onClick={() => changeDate(-1)} className="w-8 h-8 flex items-center justify-center hover:bg-stone-100 rounded-full text-stone-600 transition-colors">
-                <ChevronLeft size={18} />
-              </button>
-              <span className="text-xs font-bold w-24 text-center text-stone-800 uppercase tracking-wide">
-                 {dateKey === formatDate(new Date()) ? 'Today' : 
-                  dateKey === formatDate(new Date(Date.now() - 86400000)) ? 'Yesterday' : 
-                  selectedDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
-              </span>
-              <button onClick={() => changeDate(1)} className="w-8 h-8 flex items-center justify-center hover:bg-stone-100 rounded-full text-stone-600 transition-colors">
-                <ChevronRight size={18} />
-              </button>
-            </div>
-          )}
         </header>
 
-        <main className="flex-1 px-5 py-4 overflow-y-auto no-scrollbar relative z-0">
-          {activeTab === 'home' && (
-            <HomeView 
-              selectedDate={selectedDate}
-              setSelectedDate={setSelectedDate}
-              currentStats={currentStats}
-              currentStreak={currentStreak}
-              getDayStats={getDayStats}
-              dateKey={dateKey}
-            />
-          )}
-          {activeTab === 'tasks' && (
-            <TasksView 
-              tasks={data.tasks}
-              dateKey={dateKey}
-              addTask={addTask}
-              toggleTask={toggleTask}
-              deleteTask={deleteTask}
-            />
-          )}
-          {activeTab === 'habits' && (
-            <HabitsView 
-              habits={data.habits}
-              habitLogs={data.habitLogs}
-              dateKey={dateKey}
-              addHabit={addHabit}
-              toggleHabit={toggleHabit}
-              deleteHabit={deleteHabit}
-            />
-          )}
-          {activeTab === 'profile' && (
-            <ProfileView 
-              user={data.user}
-              updateUser={updateUser}
-            />
-          )}
-        </main>
+        {/* Desktop Date Header (Dynamic location based on tab) */}
+        <div className="flex-1 overflow-y-auto no-scrollbar relative z-0">
+          <div className="p-6 md:p-10 max-w-5xl mx-auto">
+             
+             {/* PC Header for Date (Only visible on pc if not profile) */}
+             {activeTab !== 'profile' && (
+               <div className="hidden md:flex justify-between items-end mb-8">
+                  <div>
+                    <h2 className="text-2xl font-bold capitalize">{activeTab}</h2>
+                    <p className="text-stone-500">Manage your day efficiently</p>
+                  </div>
+                  <div className="flex items-center gap-2 bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-full p-1.5 shadow-sm">
+                    <button onClick={() => changeDate(-1)} className="w-8 h-8 flex items-center justify-center hover:bg-stone-100 dark:hover:bg-stone-800 rounded-full text-stone-600 dark:text-stone-400 transition-colors">
+                      <ChevronLeft size={18} />
+                    </button>
+                    <span className="text-sm font-bold w-32 text-center text-stone-800 dark:text-stone-200 uppercase tracking-wide">
+                      {dateKey === formatDate(new Date()) ? 'Today' : 
+                        dateKey === formatDate(new Date(Date.now() - 86400000)) ? 'Yesterday' : 
+                        selectedDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                    </span>
+                    <button onClick={() => changeDate(1)} className="w-8 h-8 flex items-center justify-center hover:bg-stone-100 dark:hover:bg-stone-800 rounded-full text-stone-600 dark:text-stone-400 transition-colors">
+                      <ChevronRight size={18} />
+                    </button>
+                  </div>
+               </div>
+             )}
 
-        <div className="fixed bottom-0 w-full max-w-md px-6 py-6 z-30 pointer-events-none">
-          <nav className="bg-stone-900/95 backdrop-blur-lg rounded-full px-6 py-4 flex justify-between items-center shadow-xl shadow-stone-900/20 text-stone-400 pointer-events-auto border border-stone-800">
+             {/* Mobile Date Nav */}
+             {activeTab !== 'profile' && (
+                <div className="md:hidden flex items-center justify-between mb-4 bg-white dark:bg-stone-900 p-2 rounded-xl border border-stone-200 dark:border-stone-800">
+                  <button onClick={() => changeDate(-1)} className="p-2"><ChevronLeft size={20} /></button>
+                  <span className="font-bold">
+                    {dateKey === formatDate(new Date()) ? 'Today' : selectedDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                  </span>
+                  <button onClick={() => changeDate(1)} className="p-2"><ChevronRight size={20} /></button>
+                </div>
+             )}
+
+            {activeTab === 'home' && (
+              <HomeView 
+                user={data.user}
+                selectedDate={selectedDate}
+                setSelectedDate={setSelectedDate}
+                currentStats={currentStats}
+                currentStreak={currentStreak}
+                getDayStats={getDayStats}
+                dateKey={dateKey}
+              />
+            )}
+            {activeTab === 'tasks' && (
+              <TasksView 
+                tasks={data.tasks}
+                dateKey={dateKey}
+                addTask={addTask}
+                toggleTask={toggleTask}
+                deleteTask={deleteTask}
+              />
+            )}
+            {activeTab === 'habits' && (
+              <HabitsView 
+                habits={data.habits}
+                habitLogs={data.habitLogs}
+                dateKey={dateKey}
+                addHabit={addHabit}
+                toggleHabit={toggleHabit}
+                deleteHabit={deleteHabit}
+              />
+            )}
+            {activeTab === 'profile' && (
+              <ProfileView 
+                user={data.user}
+                updateUser={updateUser}
+                data={data}
+                setData={setData}
+                isDarkMode={isDarkMode}
+                toggleTheme={toggleTheme}
+              />
+            )}
+          </div>
+        </div>
+
+        {/* Mobile Bottom Navigation */}
+        <div className="md:hidden fixed bottom-0 w-full px-6 py-6 z-30 pointer-events-none">
+          <nav className="bg-stone-900/95 dark:bg-stone-800/95 backdrop-blur-lg rounded-full px-6 py-4 flex justify-between items-center shadow-xl shadow-stone-900/20 text-stone-400 pointer-events-auto border border-stone-800">
             <NavButton active={activeTab === 'home'} onClick={() => setActiveTab('home')} icon={CalendarIcon} label="Home" />
             <NavButton active={activeTab === 'tasks'} onClick={() => setActiveTab('tasks')} icon={ListTodo} label="Tasks" />
             <NavButton active={activeTab === 'habits'} onClick={() => setActiveTab('habits')} icon={TrendingUp} label="Habits" />
             <NavButton active={activeTab === 'profile'} onClick={() => setActiveTab('profile')} icon={User} label="Profile" />
           </nav>
         </div>
-
       </div>
     </div>
   );
