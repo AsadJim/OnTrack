@@ -69,21 +69,41 @@ const StatCard = ({ icon: Icon, value, label, highlight }) => (
   </div>
 );
 
-const NavButton = ({ active, onClick, icon: Icon, label, isSidebar }) => (
-  <button 
-    onClick={onClick}
-    className={`flex items-center gap-3 transition-all duration-300 w-full p-3 rounded-xl
-      ${active 
-        ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 font-semibold' 
-        : 'text-stone-500 dark:text-stone-400 hover:bg-stone-100 dark:hover:bg-stone-800'
-      }
-      ${!isSidebar ? 'flex-col justify-center gap-1 md:hidden' : 'hidden md:flex'}
-    `}
-  >
-    <Icon size={isSidebar ? 20 : 24} strokeWidth={active ? 2.5 : 2} />
-    <span className={`${isSidebar ? 'text-sm' : 'text-[10px] font-medium'}`}>{label}</span>
-  </button>
-);
+const NavButton = ({ active, onClick, icon: Icon, label, isSidebar }) => {
+  // Sidebar Button Style (Desktop)
+  if (isSidebar) {
+    return (
+      <button 
+        onClick={onClick}
+        className={`flex items-center gap-3 transition-all duration-200 w-full p-3 rounded-xl text-left hidden md:flex
+          ${active 
+            ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 font-semibold shadow-sm' 
+            : 'text-stone-500 dark:text-stone-400 hover:bg-stone-100 dark:hover:bg-stone-800'
+          }
+        `}
+      >
+        <Icon size={20} strokeWidth={active ? 2.5 : 2} />
+        <span className="text-sm">{label}</span>
+      </button>
+    );
+  }
+
+  // Bottom Navigation Button Style (Mobile)
+  return (
+    <button 
+      onClick={onClick}
+      className={`flex flex-col items-center justify-center gap-1 w-16 transition-all duration-300 md:hidden
+        ${active 
+          ? 'text-emerald-400 transform -translate-y-2' 
+          : 'text-stone-500 hover:text-stone-300'
+        }
+      `}
+    >
+      <Icon size={24} strokeWidth={active ? 2.5 : 2} className={active ? "drop-shadow-[0_0_8px_rgba(52,211,153,0.5)]" : ""} />
+      <span className="text-[10px] font-medium">{label}</span>
+    </button>
+  );
+};
 
 const HomeView = ({ user, selectedDate, setSelectedDate, currentStats, currentStreak, getDayStats, dateKey }) => {
   const year = selectedDate.getFullYear();
@@ -701,15 +721,18 @@ export default function OnTrackApp() {
         </nav>
 
         <div className="pt-6 border-t border-stone-100 dark:border-stone-800">
-           <div className="flex items-center gap-3 p-3 rounded-xl bg-stone-50 dark:bg-stone-800">
-              <div className="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-900 flex items-center justify-center text-emerald-800 dark:text-emerald-200 font-bold">
+           <button 
+             onClick={() => setActiveTab('profile')}
+             className="flex items-center gap-3 p-3 rounded-xl w-full text-left transition-colors hover:bg-stone-100 dark:hover:bg-stone-800/80 group"
+           >
+              <div className="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-900 flex items-center justify-center text-emerald-800 dark:text-emerald-200 font-bold group-hover:scale-105 transition-transform">
                 {data.user.name.charAt(0)}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-bold truncate">{data.user.name}</p>
-                <p className="text-xs text-stone-500 truncate">Free Plan</p>
+                <p className="text-sm font-bold truncate text-stone-900 dark:text-stone-100">{data.user.name}</p>
+                <p className="text-xs text-stone-500 truncate group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">View Profile</p>
               </div>
-           </div>
+           </button>
         </div>
       </aside>
 
