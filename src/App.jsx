@@ -21,7 +21,8 @@ import {
   LayoutDashboard,
   Bug,
   Mail,
-  Heart
+  Heart,
+  X
 } from 'lucide-react';
 
 /**
@@ -105,7 +106,143 @@ const NavButton = ({ active, onClick, icon: Icon, label, isSidebar }) => {
   );
 };
 
-const HomeView = ({ user, selectedDate, setSelectedDate, currentStats, currentStreak, getDayStats, dateKey }) => {
+// --- NEW COMPONENT: Task Modal for Calendar ---
+const TaskModal = ({ isOpen, onClose, date, tasks, addTask, toggleTask, deleteTask }) => {
+  const [newTaskTitle, setNewTaskTitle] = useState('');
+  const inputRef = useRef(null);
+
+  useEffect(() => {
+    if (isOpen && inputRef.current) {
+      setTimeout(() => inputRef.current.focus(), 100);
+    }
+  }, [isOpen]);
+
+  if (!isOpen) return null;
+
+  const dateKey = formatDate(date);
+  const dailyTasks = tasks.filter(t => t.date === dateKey);
+
+  const handleAdd = (e) => {
+    e.preventDefault();
+    if (!newTaskTitle.trim()) return;
+    addTask(newTaskTitle, 'daily', dateKey); // Explicitly pass dateKey
+    setNewTaskTitle('');
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-900/60 backdrop-blur-sm animate-fade-in">
+      <div className="bg-white dark:bg-stone-900 w-full max-w-md rounded-3xl shadow-2xl overflow-hidden border border-stone-200 dark:border-stone-800">
+        <div className="p-6 border-b border-stone-100 dark:border-stone-800 flex justify-between items-center bg-stone-50 dark:bg-stone-950">
+          <div>
+            <h3 className="text-lg font-bold text-stone-900 dark:text-white">
+              {date.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}
+            </h3>
+            <p className="text-xs text-stone-500 dark:text-stone-400">Manage tasks for this day</p>
+          </div>
+          <button onClick={onClose} className="p-2 hover:bg-stone-200 dark:hover:bg-stone-800 rounded-full transition-colors">
+            <X size={20} className="text-stone-500" />
+          </button>
+        </div>
+
+        <div className="p-6 max-h-[50vh] overflow-y-auto space-y-3">
+          {dailyTasks.length === 0 ? (
+            <div className="text-center py-8 text-stone-400 dark:text-stone-600">
+              <ListTodo size={40} className="mx-auto mb-2 opacity-30" />
+              <p className="text-sm">No tasks yet.</p>
+            </div>
+          ) : (
+            dailyTasks.map(task => (
+              <div key={task.id} className="flex items-center gap-3 p-3 bg-stone-50 dark:bg-stone-800/50 rounded-xl border border-stone-100 dark:border-stone-800">
+                <button onClick={() => toggleTask(task.id)} className="flex-shrink-0 text-emerald-600 dark:text-emerald-500">
+                  {task.completed ? <CheckCircle2 size={20} fill="currentColor" fillOpacity={0.2} /> : <Circle size={20} />}
+                </button>
+                <span className={`flex-1 text-sm ${task.completed ? 'line-through text-stone-400' : 'text-stone-900 dark:text-stone-200'}`}>{task.title}</span>
+                <button onClick={() => deleteTask(task.id)} className="text-stone-300 hover:text-red-500 p-1"><Trash2 size={16} /></button>
+              </div>
+            ))
+          )}
+        </div>
+
+        <form onSubmit={handleAdd} className="p-4 bg-stone-50 dark:bg-stone-950 border-t border-stone-100 dark:border-stone-800">
+          <div className="relative">
+            <input
+              ref={inputRef}
+              type="text"
+              value={newTaskTitle}
+              onChange={(e) => setNewTaskTitle(e.target.value)}
+              placeholder="Add a new task..."
+              className="w-full bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-xl pl-4 pr-12 py-3 text-stone-900 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            />
+            <button 
+              type="submit" 
+              disabled={!newTaskTitle.trim()}
+              className="absolute right-2 top-2 bottom-2 aspect-square bg-stone-900 dark:bg-stone-700 text-white rounded-lg flex items-center justify-center hover:bg-emerald-600 transition-colors"
+            >
+              <Plus size={18} />
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+// --- NEW COMPONENT: Welcome Modal (First Time User) ---
+const WelcomeModal = ({ isOpen, onClose, user, updateUser }) => {
+  if (!isOpen) return null;
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-6 bg-stone-900/80 backdrop-blur-sm animate-fade-in">
+      <div className="bg-white dark:bg-stone-900 w-full max-w-sm rounded-3xl shadow-2xl border border-stone-200 dark:border-stone-800 p-8 text-center">
+        <div className="w-16 h-16 bg-emerald-100 dark:bg-emerald-900/30 rounded-full flex items-center justify-center mx-auto mb-6 text-emerald-600 dark:text-emerald-400">
+          <User size={32} />
+        </div>
+        
+        <h2 className="text-2xl font-bold text-stone-900 dark:text-white mb-2">Welcome, Traveler!</h2>
+        <p className="text-stone-500 dark:text-stone-400 text-sm mb-8">Let's personalize your experience to keep you On Track.</p>
+
+        <form onSubmit={handleSubmit} className="space-y-4 text-left">
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-wider text-stone-400 mb-1 ml-1">Your Name</label>
+            <input 
+              required
+              value={user.name === 'Traveler' ? '' : user.name}
+              onChange={(e) => updateUser('name', e.target.value)}
+              placeholder="e.g. Asad Jim"
+              className="w-full bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 rounded-xl px-4 py-3 text-stone-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            />
+          </div>
+          
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-wider text-stone-400 mb-1 ml-1">Your Main Goal</label>
+            <textarea 
+              value={user.goals === 'Stay consistent and disciplined with the 80% Rule.' ? '' : user.goals}
+              onChange={(e) => updateUser('goals', e.target.value)}
+              placeholder="e.g. Generate revenue ASAP..."
+              className="w-full h-24 bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 rounded-xl px-4 py-3 text-stone-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none"
+            />
+          </div>
+
+          <button 
+            type="submit"
+            className="w-full bg-stone-900 dark:bg-emerald-600 text-white font-bold py-4 rounded-xl hover:opacity-90 transition-opacity mt-4"
+          >
+            Start My Journey
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+const HomeView = ({ user, selectedDate, setSelectedDate, currentStats, currentStreak, getDayStats, dateKey, tasks, addTask, toggleTask, deleteTask }) => {
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  
   const year = selectedDate.getFullYear();
   const month = selectedDate.getMonth();
   const monthDays = getDaysInMonth(year, month);
@@ -122,109 +259,127 @@ const HomeView = ({ user, selectedDate, setSelectedDate, currentStats, currentSt
     return 'Good Evening';
   };
 
+  const handleDateClick = (date) => {
+    setSelectedDate(date);
+    setIsModalOpen(true);
+  };
+
   return (
-    <div className="space-y-6 pb-28 md:pb-6 animate-fade-in max-w-4xl mx-auto">
-      
-      {/* Greeting & Goal Section */}
-      <div className="mb-2">
-        <h1 className="text-3xl md:text-4xl font-bold text-stone-900 dark:text-white tracking-tight">
-          {getGreeting()}, <span className="text-emerald-700 dark:text-emerald-400">{user.name.split(' ')[0]}</span>
-        </h1>
-        {user.goals && (
-          <div className="mt-4 flex items-start gap-3 bg-emerald-50 dark:bg-emerald-900/20 p-4 rounded-xl border border-emerald-100 dark:border-emerald-900/50">
-             <Target className="text-emerald-600 dark:text-emerald-400 mt-0.5 flex-shrink-0" size={20} />
-             <p className="text-sm md:text-base font-medium text-emerald-900 dark:text-emerald-200 italic">"{user.goals}"</p>
-          </div>
-        )}
-      </div>
-
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <StatCard icon={Zap} value={`${currentStreak} Days`} label="Streak" highlight={true} />
-          <StatCard icon={Target} value={`${currentStats.percentage}%`} label="Today" highlight={false} />
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Progress Insight */}
-        <div className="bg-white dark:bg-stone-900 p-5 rounded-2xl shadow-sm border border-stone-200 dark:border-stone-800">
-           <div className="flex justify-between items-end mb-3">
-              <div>
-                <h3 className="text-stone-900 dark:text-stone-100 font-bold text-lg">Daily Goal</h3>
-                <p className="text-stone-500 dark:text-stone-400 text-xs mt-1">
-                  {currentStats.isStreak ? "Excellent! You've maintained the 80% rule." : "Complete tasks & habits to hit 80%."}
-                </p>
-              </div>
-              <div className={`px-3 py-1 rounded-full text-xs font-bold ${currentStats.isStreak ? 'bg-emerald-100 dark:bg-emerald-900 text-emerald-800 dark:text-emerald-200' : 'bg-stone-100 dark:bg-stone-800 text-stone-500 dark:text-stone-400'}`}>
-                {currentStats.isStreak ? 'ON TRACK' : 'PENDING'}
-              </div>
-           </div>
-           
-           <div className="h-4 w-full bg-stone-100 dark:bg-stone-800 rounded-full overflow-hidden relative">
-              <div className="absolute top-0 bottom-0 w-0.5 bg-stone-300 dark:bg-stone-700 z-10" style={{ left: '80%' }}></div>
-              <div 
-                className={`h-full transition-all duration-700 ease-out rounded-full ${currentStats.isStreak ? 'bg-emerald-600 dark:bg-emerald-500' : 'bg-stone-800 dark:bg-stone-600'}`}
-                style={{ width: `${currentStats.percentage}%` }}
-              />
+    <>
+      <div className="space-y-6 pb-28 md:pb-6 animate-fade-in max-w-4xl mx-auto">
+        
+        {/* Greeting & Goal Section */}
+        <div className="mb-2">
+          <h1 className="text-3xl md:text-4xl font-bold text-stone-900 dark:text-white tracking-tight">
+            {getGreeting()}, <span className="text-emerald-700 dark:text-emerald-400">{user.name.split(' ')[0]}</span>
+          </h1>
+          {user.goals && (
+            <div className="mt-4 flex items-start gap-3 bg-emerald-50 dark:bg-emerald-900/20 p-4 rounded-xl border border-emerald-100 dark:border-emerald-900/50">
+               <Target className="text-emerald-600 dark:text-emerald-400 mt-0.5 flex-shrink-0" size={20} />
+               <p className="text-sm md:text-base font-medium text-emerald-900 dark:text-emerald-200 italic">"{user.goals}"</p>
             </div>
-            <div className="flex justify-between text-[10px] text-stone-400 font-medium mt-1 px-1">
-              <span>0%</span>
-              <span className="text-stone-600 dark:text-stone-400">80% Target</span>
-              <span>100%</span>
-            </div>
+          )}
         </div>
 
-        {/* Calendar */}
-        <div className="bg-white dark:bg-stone-900 p-6 rounded-2xl shadow-sm border border-stone-200 dark:border-stone-800">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="font-bold text-stone-900 dark:text-stone-100 text-lg">
-              {selectedDate.toLocaleString('default', { month: 'long', year: 'numeric' })}
-            </h3>
-            <button 
-              onClick={() => setSelectedDate(new Date())}
-              className="text-xs font-semibold text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 px-3 py-1 rounded-full transition-colors"
-            >
-              Jump to Today
-            </button>
-          </div>
-          
-          <div className="grid grid-cols-7 gap-y-4">
-            {['Su','Mo','Tu','We','Th','Fr','Sa'].map((d, i) => (
-              <div key={i} className="text-center text-xs text-stone-400 font-bold uppercase tracking-wider">{d}</div>
-            ))}
-            {emptySlots.map(i => <div key={`empty-${i}`} />)}
-            {daysArray.map(day => {
-              const d = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), day);
-              const dKey = formatDate(d);
-              const stats = getDayStats(dKey);
-              const isToday = dKey === formatDate(new Date());
-              const isSelected = dKey === dateKey;
-              
-              return (
-                <div key={day} className="flex justify-center">
-                  <button 
-                    onClick={() => setSelectedDate(d)}
-                    className={`
-                      w-9 h-9 rounded-full flex items-center justify-center text-sm font-medium transition-all relative
-                      ${isSelected ? 'bg-stone-900 dark:bg-emerald-500 text-white shadow-lg scale-110 z-10' : ''}
-                      ${!isSelected && stats.isStreak ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800' : ''}
-                      ${!isSelected && !stats.isStreak && !isToday ? 'text-stone-500 dark:text-stone-500 hover:bg-stone-100 dark:hover:bg-stone-800' : ''}
-                      ${!isSelected && isToday ? 'border-2 border-stone-900 dark:border-stone-100 text-stone-900 dark:text-stone-100' : ''}
-                    `}
-                  >
-                    {day}
-                    {!isSelected && stats.isStreak && (
-                       <div className="absolute -bottom-1 w-1 h-1 bg-emerald-600 rounded-full"></div>
-                    )}
-                  </button>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <StatCard icon={Zap} value={`${currentStreak} Days`} label="Streak" highlight={true} />
+            <StatCard icon={Target} value={`${currentStats.percentage}%`} label="Today" highlight={false} />
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Progress Insight */}
+          <div className="bg-white dark:bg-stone-900 p-5 rounded-2xl shadow-sm border border-stone-200 dark:border-stone-800">
+             <div className="flex justify-between items-end mb-3">
+                <div>
+                  <h3 className="text-stone-900 dark:text-stone-100 font-bold text-lg">Daily Goal</h3>
+                  <p className="text-stone-500 dark:text-stone-400 text-xs mt-1">
+                    {currentStats.isStreak ? "Excellent! You've maintained the 80% rule." : "Complete tasks & habits to hit 80%."}
+                  </p>
                 </div>
-              );
-            })}
+                <div className={`px-3 py-1 rounded-full text-xs font-bold ${currentStats.isStreak ? 'bg-emerald-100 dark:bg-emerald-900 text-emerald-800 dark:text-emerald-200' : 'bg-stone-100 dark:bg-stone-800 text-stone-500 dark:text-stone-400'}`}>
+                  {currentStats.isStreak ? 'ON TRACK' : 'PENDING'}
+                </div>
+             </div>
+             
+             <div className="h-4 w-full bg-stone-100 dark:bg-stone-800 rounded-full overflow-hidden relative">
+                <div className="absolute top-0 bottom-0 w-0.5 bg-stone-300 dark:bg-stone-700 z-10" style={{ left: '80%' }}></div>
+                <div 
+                  className={`h-full transition-all duration-700 ease-out rounded-full ${currentStats.isStreak ? 'bg-emerald-600 dark:bg-emerald-500' : 'bg-stone-800 dark:bg-stone-600'}`}
+                  style={{ width: `${currentStats.percentage}%` }}
+                />
+              </div>
+              <div className="flex justify-between text-[10px] text-stone-400 font-medium mt-1 px-1">
+                <span>0%</span>
+                <span className="text-stone-600 dark:text-stone-400">80% Target</span>
+                <span>100%</span>
+              </div>
+          </div>
+
+          {/* Calendar */}
+          <div className="bg-white dark:bg-stone-900 p-6 rounded-2xl shadow-sm border border-stone-200 dark:border-stone-800">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="font-bold text-stone-900 dark:text-stone-100 text-lg">
+                {selectedDate.toLocaleString('default', { month: 'long', year: 'numeric' })}
+              </h3>
+              <button 
+                onClick={() => { setSelectedDate(new Date()); setIsModalOpen(true); }}
+                className="text-xs font-semibold text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 px-3 py-1 rounded-full transition-colors"
+              >
+                Today
+              </button>
+            </div>
+            
+            <div className="grid grid-cols-7 gap-y-4">
+              {['Su','Mo','Tu','We','Th','Fr','Sa'].map((d, i) => (
+                <div key={i} className="text-center text-xs text-stone-400 font-bold uppercase tracking-wider">{d}</div>
+              ))}
+              {emptySlots.map(i => <div key={`empty-${i}`} />)}
+              {daysArray.map(day => {
+                const d = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), day);
+                const dKey = formatDate(d);
+                const stats = getDayStats(dKey);
+                const isToday = dKey === formatDate(new Date());
+                const isSelected = dKey === dateKey;
+                
+                return (
+                  <div key={day} className="flex justify-center">
+                    <button 
+                      onClick={() => handleDateClick(d)}
+                      className={`
+                        w-9 h-9 rounded-full flex items-center justify-center text-sm font-medium transition-all relative
+                        ${isSelected ? 'bg-stone-900 dark:bg-emerald-500 text-white shadow-lg scale-110 z-10' : ''}
+                        ${!isSelected && stats.isStreak ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800' : ''}
+                        ${!isSelected && !stats.isStreak && !isToday ? 'text-stone-500 dark:text-stone-500 hover:bg-stone-100 dark:hover:bg-stone-800' : ''}
+                        ${!isSelected && isToday ? 'border-2 border-stone-900 dark:border-stone-100 text-stone-900 dark:text-stone-100' : ''}
+                      `}
+                    >
+                      {day}
+                      {!isSelected && stats.isStreak && (
+                         <div className="absolute -bottom-1 w-1 h-1 bg-emerald-600 rounded-full"></div>
+                      )}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
       </div>
-    </div>
+
+      <TaskModal 
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        date={selectedDate}
+        tasks={tasks}
+        addTask={addTask}
+        toggleTask={toggleTask}
+        deleteTask={deleteTask}
+      />
+    </>
   );
 };
 
+// ... TasksView, HabitsView, ProfileView components ...
 const TasksView = ({ tasks, dateKey, addTask, toggleTask, deleteTask }) => {
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [filter, setFilter] = useState('daily'); 
@@ -238,7 +393,7 @@ const TasksView = ({ tasks, dateKey, addTask, toggleTask, deleteTask }) => {
      
      if (filter === 'weekly') {
        const selected = new Date(dateKey);
-       const day = selected.getDay(); // 0 (Sun) to 6 (Sat)
+       const day = selected.getDay(); 
        const diff = selected.getDate() - day; 
        
        const startOfWeek = new Date(selected);
@@ -261,7 +416,8 @@ const TasksView = ({ tasks, dateKey, addTask, toggleTask, deleteTask }) => {
   const handleAdd = (e) => {
     e.preventDefault();
     if (!newTaskTitle.trim()) return;
-    addTask(newTaskTitle, filter === 'all' ? 'daily' : filter);
+    // Default to adding to the selected date (dateKey)
+    addTask(newTaskTitle, 'daily', dateKey);
     setNewTaskTitle('');
   };
 
@@ -602,6 +758,7 @@ export default function OnTrackApp() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [data, setData] = useState(INITIAL_DATA);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [showWelcomeModal, setShowWelcomeModal] = useState(false);
   
   // Theme State
   const [isDarkMode, setIsDarkMode] = useState(() => {
@@ -635,6 +792,8 @@ export default function OnTrackApp() {
       } catch (e) {
         console.error("Failed to parse data", e);
       }
+    } else {
+      setShowWelcomeModal(true);
     }
     setIsLoaded(true);
   }, []);
@@ -713,8 +872,14 @@ export default function OnTrackApp() {
     }));
   };
 
-  const addTask = (title, type = 'daily') => {
-    const newTask = { id: Date.now().toString(), title, type, date: dateKey, completed: false };
+  const addTask = (title, type = 'daily', taskDate = null) => {
+    const newTask = { 
+      id: Date.now().toString(), 
+      title, 
+      type, 
+      date: taskDate || dateKey, 
+      completed: false 
+    };
     setData(prev => ({ ...prev, tasks: [...prev.tasks, newTask] }));
   };
 
@@ -805,8 +970,8 @@ export default function OnTrackApp() {
         <div className="flex-1 overflow-y-auto no-scrollbar relative z-0">
           <div className="p-6 md:p-10 max-w-5xl mx-auto">
              
-             {/* PC Header for Date (Only visible on pc if not profile AND not tasks) */}
-             {activeTab !== 'profile' && activeTab !== 'tasks' && (
+             {/* PC Header for Date (Only visible on pc if not profile) */}
+             {activeTab !== 'profile' && (
                <div className="hidden md:flex justify-between items-end mb-8">
                   <div>
                     <h2 className="text-2xl font-bold capitalize">{activeTab}</h2>
@@ -828,8 +993,8 @@ export default function OnTrackApp() {
                </div>
              )}
 
-             {/* Mobile Date Nav */}
-             {activeTab !== 'profile' && activeTab !== 'tasks' && (
+             {/* Mobile Date Nav (Hidden on Profile tab) */}
+             {activeTab !== 'profile' && (
                 <div className="md:hidden flex items-center justify-between mb-4 bg-white dark:bg-stone-900 p-2 rounded-xl border border-stone-200 dark:border-stone-800">
                   <button onClick={() => changeDate(-1)} className="p-2"><ChevronLeft size={20} /></button>
                   <span className="font-bold">
@@ -848,6 +1013,10 @@ export default function OnTrackApp() {
                 currentStreak={currentStreak}
                 getDayStats={getDayStats}
                 dateKey={dateKey}
+                tasks={data.tasks}
+                addTask={addTask}
+                toggleTask={toggleTask}
+                deleteTask={deleteTask}
               />
             )}
             {activeTab === 'tasks' && (
@@ -891,6 +1060,13 @@ export default function OnTrackApp() {
             <NavButton active={activeTab === 'profile'} onClick={() => setActiveTab('profile')} icon={User} label="Profile" />
           </nav>
         </div>
+        
+        <WelcomeModal 
+          isOpen={showWelcomeModal} 
+          onClose={() => setShowWelcomeModal(false)}
+          user={data.user}
+          updateUser={updateUser}
+        />
       </div>
     </div>
   );
