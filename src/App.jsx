@@ -19,7 +19,9 @@ import {
   Moon,
   Sun,
   LayoutDashboard,
-  LogOut
+  Bug,
+  Mail,
+  Heart
 } from 'lucide-react';
 
 /**
@@ -70,7 +72,6 @@ const StatCard = ({ icon: Icon, value, label, highlight }) => (
 );
 
 const NavButton = ({ active, onClick, icon: Icon, label, isSidebar }) => {
-  // Sidebar Button Style (Desktop)
   if (isSidebar) {
     return (
       <button 
@@ -88,7 +89,6 @@ const NavButton = ({ active, onClick, icon: Icon, label, isSidebar }) => {
     );
   }
 
-  // Bottom Navigation Button Style (Mobile)
   return (
     <button 
       onClick={onClick}
@@ -231,7 +231,30 @@ const TasksView = ({ tasks, dateKey, addTask, toggleTask, deleteTask }) => {
   
   const displayedTasks = tasks.filter(t => {
      if (filter === 'all') return true;
-     if (filter === 'daily') return t.date === dateKey;
+     
+     if (filter === 'daily') {
+       return t.date === dateKey;
+     }
+     
+     if (filter === 'weekly') {
+       const selected = new Date(dateKey);
+       const day = selected.getDay(); // 0 (Sun) to 6 (Sat)
+       const diff = selected.getDate() - day; 
+       
+       const startOfWeek = new Date(selected);
+       startOfWeek.setDate(diff);
+       startOfWeek.setHours(0,0,0,0);
+
+       const endOfWeek = new Date(startOfWeek);
+       endOfWeek.setDate(startOfWeek.getDate() + 6);
+       endOfWeek.setHours(23,59,59,999);
+       
+       const taskDate = new Date(t.date);
+       taskDate.setHours(0,0,0,0);
+       
+       return taskDate.getTime() >= startOfWeek.getTime() && taskDate.getTime() <= endOfWeek.getTime();
+     }
+     
      return t.type === filter;
   });
 
@@ -254,7 +277,7 @@ const TasksView = ({ tasks, dateKey, addTask, toggleTask, deleteTask }) => {
                 ? 'bg-white dark:bg-stone-700 text-stone-900 dark:text-white shadow-sm' 
                 : 'text-stone-500 dark:text-stone-400 hover:text-stone-700 dark:hover:text-stone-200'}`}
           >
-            {f === 'daily' ? 'Today' : f}
+            {f === 'daily' ? 'Today' : f === 'weekly' ? 'This Week' : 'All Time'}
           </button>
         ))}
       </div>
@@ -265,7 +288,7 @@ const TasksView = ({ tasks, dateKey, addTask, toggleTask, deleteTask }) => {
             <div className="w-16 h-16 bg-stone-100 dark:bg-stone-800 rounded-full flex items-center justify-center mb-3">
                <ListTodo size={24} className="opacity-50" />
             </div>
-            <p className="text-sm font-medium">No tasks for this day.</p>
+            <p className="text-sm font-medium">No tasks found for this view.</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -287,6 +310,11 @@ const TasksView = ({ tasks, dateKey, addTask, toggleTask, deleteTask }) => {
                   <span className={`block text-sm font-medium truncate ${task.completed ? 'line-through text-stone-400 dark:text-stone-500' : 'text-stone-900 dark:text-stone-200'}`}>
                     {task.title}
                   </span>
+                  {filter === 'weekly' && (
+                    <span className="text-[10px] text-stone-400 dark:text-stone-500">
+                      {new Date(task.date).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric'})}
+                    </span>
+                  )}
                 </div>
                 <button onClick={() => deleteTask(task.id)} className="text-stone-300 dark:text-stone-600 opacity-0 group-hover:opacity-100 transition-opacity p-2 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg">
                   <Trash2 size={16} />
@@ -309,7 +337,7 @@ const TasksView = ({ tasks, dateKey, addTask, toggleTask, deleteTask }) => {
           <button 
             type="submit" 
             disabled={!newTaskTitle.trim()}
-            className="absolute right-2 top-2 bottom-2 aspect-square bg-stone-900 dark:bg-stone-700 text-white rounded-lg flex items-center justify-center hover:bg-emerald-600 dark:hover:bg-emerald-500 disabled:opacity-50 disabled:hover:bg-stone-900 transition-colors"
+            className="absolute right-2 top-2 bottom-2 aspect-square bg-stone-900 dark:bg-stone-700 text-white rounded-lg flex items-center justify-center hover:bg-emerald-600 dark:hover:bg-emerald-50 disabled:opacity-50 disabled:hover:bg-stone-900 transition-colors"
           >
             <Plus size={20} />
           </button>
@@ -538,9 +566,29 @@ const ProfileView = ({ user, updateUser, data, setData, isDarkMode, toggleTheme 
           />
         </div>
       </div>
+
+      {/* Feedback / Bug Report (Mailto) */}
+      <div className="bg-white dark:bg-stone-900 p-6 rounded-2xl shadow-sm border border-stone-200 dark:border-stone-800 space-y-4">
+        <div className="flex items-center gap-2 text-stone-900 dark:text-white font-bold">
+          <Bug size={18} className="text-red-500" />
+          <h3>Feedback & Bugs</h3>
+        </div>
+        <p className="text-xs text-stone-500 dark:text-stone-400">Found a bug or have a suggestion? Email us directly.</p>
+        
+        <a 
+          href="mailto:gemorjim@gmail.com?subject=On%20Track%20Feedback%20%2F%20Bug%20Report"
+          className="w-full flex items-center justify-center gap-2 bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-300 py-3 rounded-xl text-sm font-semibold hover:bg-stone-200 dark:hover:bg-stone-700 transition-colors"
+        >
+          <Mail size={16} />
+          Send Email
+        </a>
+      </div>
       
-      <div className="text-center pt-4 pb-8">
-        <p className="text-xs font-medium text-stone-400 uppercase tracking-widest">On Track v2.1</p>
+      <div className="text-center pt-4 pb-8 flex flex-col items-center justify-center text-stone-400 gap-1">
+        <p className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-widest">
+          Made with <Heart size={12} className="text-red-500 fill-red-500" /> for you by Jim & Gemini
+        </p>
+        <p className="text-[10px] opacity-60">v2.3 • Halal & Productive</p>
       </div>
     </div>
   );
@@ -757,8 +805,8 @@ export default function OnTrackApp() {
         <div className="flex-1 overflow-y-auto no-scrollbar relative z-0">
           <div className="p-6 md:p-10 max-w-5xl mx-auto">
              
-             {/* PC Header for Date (Only visible on pc if not profile) */}
-             {activeTab !== 'profile' && (
+             {/* PC Header for Date (Only visible on pc if not profile AND not tasks) */}
+             {activeTab !== 'profile' && activeTab !== 'tasks' && (
                <div className="hidden md:flex justify-between items-end mb-8">
                   <div>
                     <h2 className="text-2xl font-bold capitalize">{activeTab}</h2>
@@ -781,7 +829,7 @@ export default function OnTrackApp() {
              )}
 
              {/* Mobile Date Nav */}
-             {activeTab !== 'profile' && (
+             {activeTab !== 'profile' && activeTab !== 'tasks' && (
                 <div className="md:hidden flex items-center justify-between mb-4 bg-white dark:bg-stone-900 p-2 rounded-xl border border-stone-200 dark:border-stone-800">
                   <button onClick={() => changeDate(-1)} className="p-2"><ChevronLeft size={20} /></button>
                   <span className="font-bold">
