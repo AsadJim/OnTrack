@@ -203,7 +203,7 @@ const WelcomeModal = ({ isOpen, onClose, user, updateUser }) => {
           <User size={32} />
         </div>
         
-        <h2 className="text-2xl font-bold text-stone-900 dark:text-white mb-2">Welcome, Traveler!</h2>
+        <h2 className="text-2xl font-bold text-stone-900 dark:text-white mb-2">Welcome!</h2>
         <p className="text-stone-500 dark:text-stone-400 text-sm mb-8">Let's personalize your experience to keep you On Track.</p>
 
         <form onSubmit={handleSubmit} className="space-y-4 text-left">
@@ -213,7 +213,7 @@ const WelcomeModal = ({ isOpen, onClose, user, updateUser }) => {
               required
               value={user.name === 'Traveler' ? '' : user.name}
               onChange={(e) => updateUser('name', e.target.value)}
-              placeholder="e.g. Asad Jim"
+              placeholder="e.g. Asad"
               className="w-full bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 rounded-xl px-4 py-3 text-stone-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
             />
           </div>
@@ -223,7 +223,7 @@ const WelcomeModal = ({ isOpen, onClose, user, updateUser }) => {
             <textarea 
               value={user.goals === 'Stay consistent and disciplined with the 80% Rule.' ? '' : user.goals}
               onChange={(e) => updateUser('goals', e.target.value)}
-              placeholder="e.g. Generate revenue ASAP..."
+              placeholder="e.g. Pray 5 times daily & launch my project."
               className="w-full h-24 bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 rounded-xl px-4 py-3 text-stone-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none"
             />
           </div>
