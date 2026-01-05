@@ -58,6 +58,58 @@ const getDaysInMonth = (year, month) => new Date(year, month + 1, 0).getDate();
 
 // --- SUB-COMPONENTS ---
 
+const EditableText = ({ text, onSave, className }) => {
+  const [isEditing, setIsEditing] = useState(false);
+  const [value, setValue] = useState(text);
+  const inputRef = useRef(null);
+
+  useEffect(() => {
+    if (isEditing && inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, [isEditing]);
+
+  const handleSave = () => {
+    if (value.trim() && value !== text) {
+      onSave(value);
+    } else {
+      setValue(text); // Revert if empty or unchanged
+    }
+    setIsEditing(false);
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter') handleSave();
+    if (e.key === 'Escape') {
+      setValue(text);
+      setIsEditing(false);
+    }
+  };
+
+  if (isEditing) {
+    return (
+      <input
+        ref={inputRef}
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        onBlur={handleSave}
+        onKeyDown={handleKeyDown}
+        className={`bg-transparent outline-none border-b-2 border-emerald-500 w-full rounded-sm px-1 ${className}`}
+      />
+    );
+  }
+
+  return (
+    <span 
+      onClick={() => setIsEditing(true)} 
+      className={`cursor-text hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors ${className}`}
+      title="Click to edit"
+    >
+      {text}
+    </span>
+  );
+};
+
 const StatCard = ({ icon: Icon, value, label, highlight }) => (
   <div className={`p-4 rounded-2xl border flex flex-col items-center justify-center gap-1 transition-all 
     ${highlight 
@@ -107,7 +159,7 @@ const NavButton = ({ active, onClick, icon: Icon, label, isSidebar }) => {
 };
 
 // --- NEW COMPONENT: Task Modal for Calendar ---
-const TaskModal = ({ isOpen, onClose, date, tasks, addTask, toggleTask, deleteTask }) => {
+const TaskModal = ({ isOpen, onClose, date, tasks, addTask, editTask, toggleTask, deleteTask }) => {
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const inputRef = useRef(null);
 
@@ -156,7 +208,13 @@ const TaskModal = ({ isOpen, onClose, date, tasks, addTask, toggleTask, deleteTa
                 <button onClick={() => toggleTask(task.id)} className="flex-shrink-0 text-emerald-600 dark:text-emerald-500">
                   {task.completed ? <CheckCircle2 size={20} fill="currentColor" fillOpacity={0.2} /> : <Circle size={20} />}
                 </button>
-                <span className={`flex-1 text-sm ${task.completed ? 'line-through text-stone-400' : 'text-stone-900 dark:text-stone-200'}`}>{task.title}</span>
+                <div className="flex-1 min-w-0">
+                  <EditableText 
+                    text={task.title} 
+                    onSave={(newTitle) => editTask(task.id, newTitle)}
+                    className={`text-sm block truncate ${task.completed ? 'line-through text-stone-400' : 'text-stone-900 dark:text-stone-200'}`}
+                  />
+                </div>
                 <button onClick={() => deleteTask(task.id)} className="text-stone-300 hover:text-red-500 p-1"><Trash2 size={16} /></button>
               </div>
             ))
@@ -240,7 +298,7 @@ const WelcomeModal = ({ isOpen, onClose, user, updateUser }) => {
   );
 };
 
-const HomeView = ({ user, selectedDate, setSelectedDate, currentStats, currentStreak, getDayStats, dateKey, tasks, addTask, toggleTask, deleteTask }) => {
+const HomeView = ({ user, selectedDate, setSelectedDate, currentStats, currentStreak, getDayStats, dateKey, tasks, addTask, editTask, toggleTask, deleteTask }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   
   const year = selectedDate.getFullYear();
@@ -372,6 +430,7 @@ const HomeView = ({ user, selectedDate, setSelectedDate, currentStats, currentSt
         date={selectedDate}
         tasks={tasks}
         addTask={addTask}
+        editTask={editTask}
         toggleTask={toggleTask}
         deleteTask={deleteTask}
       />
@@ -380,7 +439,7 @@ const HomeView = ({ user, selectedDate, setSelectedDate, currentStats, currentSt
 };
 
 // ... TasksView, HabitsView, ProfileView components ...
-const TasksView = ({ tasks, dateKey, addTask, toggleTask, deleteTask }) => {
+const TasksView = ({ tasks, dateKey, addTask, editTask, toggleTask, deleteTask }) => {
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [filter, setFilter] = useState('daily'); 
   
@@ -463,9 +522,11 @@ const TasksView = ({ tasks, dateKey, addTask, toggleTask, deleteTask }) => {
                   }
                 </button>
                 <div className="flex-1 min-w-0">
-                  <span className={`block text-sm font-medium truncate ${task.completed ? 'line-through text-stone-400 dark:text-stone-500' : 'text-stone-900 dark:text-stone-200'}`}>
-                    {task.title}
-                  </span>
+                  <EditableText 
+                    text={task.title} 
+                    onSave={(newTitle) => editTask(task.id, newTitle)}
+                    className={`block text-sm font-medium truncate ${task.completed ? 'line-through text-stone-400 dark:text-stone-500' : 'text-stone-900 dark:text-stone-200'}`}
+                  />
                   {filter === 'weekly' && (
                     <span className="text-[10px] text-stone-400 dark:text-stone-500">
                       {new Date(task.date).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric'})}
@@ -503,9 +564,12 @@ const TasksView = ({ tasks, dateKey, addTask, toggleTask, deleteTask }) => {
   );
 };
 
-const HabitsView = ({ habits, habitLogs, dateKey, addHabit, toggleHabit, deleteHabit }) => {
+const HabitsView = ({ habits, habitLogs, dateKey, addHabit, editHabit, toggleHabit, deleteHabit }) => {
   const [newHabitTitle, setNewHabitTitle] = useState('');
   const dailyLog = habitLogs[dateKey] || { habitIds: [] };
+
+  // FIX: Only show habits created on or before the selected date
+  const visibleHabits = habits.filter(h => h.created_at <= dateKey);
 
   const handleAdd = (e) => {
     e.preventDefault();
@@ -530,16 +594,16 @@ const HabitsView = ({ habits, habitLogs, dateKey, addHabit, toggleHabit, deleteH
       </div>
 
       <div className="flex-1 overflow-y-auto space-y-3">
-        {habits.length === 0 ? (
+        {visibleHabits.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-48 text-stone-400 dark:text-stone-600">
             <div className="w-16 h-16 bg-stone-100 dark:bg-stone-800 rounded-full flex items-center justify-center mb-3">
                <TrendingUp size={24} className="opacity-50" />
             </div>
-            <p className="text-sm font-medium">No habits created yet.</p>
+            <p className="text-sm font-medium">No habits active for this date.</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {habits.map(habit => {
+            {visibleHabits.map(habit => {
               const isDone = dailyLog.habitIds.includes(habit.id);
               return (
                 <div key={habit.id} className={`group p-4 rounded-xl border flex items-center gap-4 transition-all duration-200 
@@ -556,9 +620,11 @@ const HabitsView = ({ habits, habitLogs, dateKey, addHabit, toggleHabit, deleteH
                      }
                   </button>
                   <div className="flex-1">
-                    <span className={`block text-sm font-semibold transition-colors ${isDone ? 'text-emerald-900 dark:text-emerald-200' : 'text-stone-700 dark:text-stone-300'}`}>
-                      {habit.title}
-                    </span>
+                    <EditableText 
+                      text={habit.title}
+                      onSave={(newTitle) => editHabit(habit.id, newTitle)} 
+                      className={`block text-sm font-semibold transition-colors ${isDone ? 'text-emerald-900 dark:text-emerald-200' : 'text-stone-700 dark:text-stone-300'}`}
+                    />
                     <span className="text-[10px] text-stone-400">Daily Habit</span>
                   </div>
                   <button onClick={() => deleteHabit(habit.id)} className="text-stone-300 dark:text-stone-600 opacity-0 group-hover:opacity-100 transition-opacity p-2 hover:text-red-600">
@@ -808,7 +874,7 @@ export default function OnTrackApp() {
 
   // Engine
   const getDayStats = (targetDateStr) => {
-    const activeHabits = data.habits;
+    const activeHabits = data.habits.filter(h => h.created_at <= targetDateStr);
     const dailyTasks = data.tasks.filter(t => t.date === targetDateStr);
     const totalItems = activeHabits.length + dailyTasks.length;
     
@@ -883,8 +949,17 @@ export default function OnTrackApp() {
     setData(prev => ({ ...prev, tasks: [...prev.tasks, newTask] }));
   };
 
+  const editTask = (taskId, newTitle) => {
+    setData(prev => ({
+      ...prev,
+      tasks: prev.tasks.map(t => t.id === taskId ? { ...t, title: newTitle } : t)
+    }));
+  };
+
   const deleteTask = (taskId) => {
-    setData(prev => ({ ...prev, tasks: prev.tasks.filter(t => t.id !== taskId) }));
+    if (window.confirm("Are you sure you want to delete this task?")) {
+      setData(prev => ({ ...prev, tasks: prev.tasks.filter(t => t.id !== taskId) }));
+    }
   };
 
   const addHabit = (title) => {
@@ -892,8 +967,17 @@ export default function OnTrackApp() {
     setData(prev => ({ ...prev, habits: [...prev.habits, newHabit] }));
   };
 
+  const editHabit = (habitId, newTitle) => {
+    setData(prev => ({
+      ...prev,
+      habits: prev.habits.map(h => h.id === habitId ? { ...h, title: newTitle } : h)
+    }));
+  };
+
   const deleteHabit = (habitId) => {
-    setData(prev => ({ ...prev, habits: prev.habits.filter(h => h.id !== habitId) }));
+    if (window.confirm("Delete this habit? This will remove it from all future dates.")) {
+      setData(prev => ({ ...prev, habits: prev.habits.filter(h => h.id !== habitId) }));
+    }
   };
 
   const updateUser = (field, value) => {
@@ -1015,6 +1099,7 @@ export default function OnTrackApp() {
                 dateKey={dateKey}
                 tasks={data.tasks}
                 addTask={addTask}
+                editTask={editTask}
                 toggleTask={toggleTask}
                 deleteTask={deleteTask}
               />
@@ -1024,6 +1109,7 @@ export default function OnTrackApp() {
                 tasks={data.tasks}
                 dateKey={dateKey}
                 addTask={addTask}
+                editTask={editTask}
                 toggleTask={toggleTask}
                 deleteTask={deleteTask}
               />
@@ -1034,6 +1120,7 @@ export default function OnTrackApp() {
                 habitLogs={data.habitLogs}
                 dateKey={dateKey}
                 addHabit={addHabit}
+                editHabit={editHabit}
                 toggleHabit={toggleHabit}
                 deleteHabit={deleteHabit}
               />
